@@ -1,7 +1,7 @@
 import cv2
 
 # Load the image
-image = cv2.imread(r'mockups\mockup.png')
+image = cv2.imread(r'mockups\mockup4.png')
 
 # Convert to grayscale
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
