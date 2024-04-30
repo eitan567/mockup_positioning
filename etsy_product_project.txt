@@ -1,0 +1,25 @@
+Etsy product creator app :
+
+1. see - mockup generator system below
+6. title generation - optimazied for specific products
+7. keywords generation 
+8. price generation
+9. main colors generation
+10. google drive and pdf link to product generation
+11. 
+
+mockup generator system:
+
+1. mockup generation
+2. primary -product mockup- desing generation
+3. digital art image upscaling - using ai
+4. animation mockup generation
+5. product info and size mockup
+
+Adobe Stock Helper App:
+
+1. landing page
+2. login/logout page
+3. uploder page
+4. data result page with csv generator button
+5. 

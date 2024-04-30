@@ -1,0 +1,109 @@
+import os
+from dotenv import load_dotenv
+import cv2
+from PIL import Image
+import numpy as np
+
+# Load environment variables from .env file
+load_dotenv()
+
+def resize_image_to_fit(image_path, width, height):
+    img = Image.open(image_path)
+    img_aspect = img.width / img.height
+    frame_aspect = width / height
+
+    if img_aspect > frame_aspect:
+        # Image is wider than the frame, fit to width
+        new_width = width
+        new_height = int(new_width / img_aspect)
+    else:
+        # Image is taller or equal to frame, fit to height
+        new_height = height
+        new_width = int(new_height * img_aspect)
+
+    resized_img = img.resize((new_width, new_height), Image.LANCZOS)
+    return resized_img
+
+def non_maximum_suppression(boxes, overlapThresh):
+    if len(boxes) == 0:
+        return []
+
+    if boxes.dtype.kind == "i":
+        boxes = boxes.astype("float")
+
+    pick = []
+    x1 = boxes[:,0]
+    y1 = boxes[:,1]
+    x2 = boxes[:,2] + boxes[:,0]
+    y2 = boxes[:,3] + boxes[:,1]
+    area = (x2 - x1 + 1) * (y2 - y1 + 1)
+    idxs = np.argsort(y2)
+
+    while len(idxs) > 0:
+        last = len(idxs) - 1
+        i = idxs[last]
+        pick.append(i)
+        xx1 = np.maximum(x1[i], x1[idxs[:last]])
+        yy1 = np.maximum(y1[i], y1[idxs[:last]])
+        xx2 = np.minimum(x2[i], x2[idxs[:last]])
+        yy2 = np.minimum(y2[i], y2[idxs[:last]])
+        w = np.maximum(0, xx2 - xx1 + 1)
+        h = np.maximum(0, yy2 - yy1 + 1)
+        overlap = (w * h) / area[idxs[:last]]
+        idxs = np.delete(idxs, np.concatenate(([last], np.where(overlap > overlapThresh)[0])))
+
+    return boxes[pick].astype("int")
+
+def process_image(mockup_path, image_file):
+    image = cv2.imread(mockup_path, cv2.IMREAD_UNCHANGED)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (1,1), 0)
+    edges = cv2.Canny(blurred, threshold1=100, threshold2=90)
+    contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    min_area = image.shape[0] * image.shape[1] * 0.01
+    contours_above_threshold = [contour for contour in contours if cv2.contourArea(contour) > min_area]
+
+    if len(contours_above_threshold) > 1:
+        boxes = np.array([cv2.boundingRect(contour) for contour in contours_above_threshold])
+        filtered_boxes = non_maximum_suppression(boxes, 0.3)
+    else:
+        filtered_boxes = [cv2.boundingRect(contour) for contour in contours_above_threshold]
+    
+    print(f'filtered_boxes{len(filtered_boxes)}')
+    
+    for (x, y, w, h) in filtered_boxes:
+        pil_image = resize_image_to_fit(image_file, w, h)
+        if pil_image.mode == 'RGBA':
+            open_cv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGBA2BGRA)
+        else:
+            open_cv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+        start_x = x + (w - open_cv_image.shape[1]) // 2
+        start_y = y + (h - open_cv_image.shape[0]) // 2
+        alpha_s = open_cv_image[:, :, 3] / 255.0
+        alpha_l = 1.0 - alpha_s
+        for c in range(0, 3):
+            image[start_y:start_y + open_cv_image.shape[0], start_x:start_x + open_cv_image.shape[1], c] = \
+                (alpha_s * open_cv_image[:, :, c] + alpha_l * image[start_y:start_y + open_cv_image.shape[0], start_x:start_x + open_cv_image.shape[1], c])
+        cv2.rectangle(image, (x, y), (x+w, y+h), (0, 0, 0), 2)
+        output_filename = f"{os.path.splitext(os.path.basename(mockup_path))[0]}_{os.path.basename(image_file)}"
+        output_path = os.path.join('complete_mockup', output_filename)
+        cv2.imwrite(output_path, image)
+
+# Directories setup
+mockup_directory = os.environ.get("MOCKUP_DIR")
+image_directory = os.environ.get("ART_DIR")
+if not os.path.exists('complete_mockup'):
+    os.makedirs('complete_mockup')
+
+# Load file names
+mockup_files = [os.path.join(mockup_directory, f) for f in os.listdir(mockup_directory) if f.endswith(('png', 'jpg'))]
+image_files = [os.path.join(image_directory, f) for f in os.listdir(image_directory) if f.endswith(('jpg', 'png'))]
+
+# Process each mockup with every image
+for mockup in mockup_files:
+    for picture in image_files:
+        process_image(mockup, picture)
+
+cv2.waitKey(0)
+cv2.destroyAllWindows()

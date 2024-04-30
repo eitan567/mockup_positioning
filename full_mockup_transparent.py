@@ -21,7 +21,7 @@ def resize_image_to_fit(image_path, width, height):
     return resized_img
 
 # Load the base image (mockup)
-image = cv2.imread(r'mockups\mockup4.png', cv2.IMREAD_UNCHANGED)
+image = cv2.imread(r'C:\\Users\\Eitan\\Desktop\\mockups\\testmockup\\mockup.png', cv2.IMREAD_UNCHANGED)
 
 # # Convert to grayscale for edge detection
 # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -112,7 +112,7 @@ gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 blurred = cv2.GaussianBlur(gray, (1,1), 0)
 
 # Canny edge detection
-edges = cv2.Canny(blurred, threshold1=100, threshold2=90)
+edges = cv2.Canny(blurred, threshold1=10, threshold2=90)
 
 # Find contours
 contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -160,9 +160,9 @@ for frame, image_file in zip(frames, image_files):
         image[start_y:start_y + open_cv_image.shape[0], start_x:start_x + open_cv_image.shape[1], c] = \
             (alpha_s * open_cv_image[:, :, c] +
              alpha_l * image[start_y:start_y + open_cv_image.shape[0], start_x:start_x + open_cv_image.shape[1], c])
-    # if cv2.contourArea(contour) > min_area:
-    #     x, y, w, h = cv2.boundingRect(contour)
-    #     cv2.rectangle(image, (x, y), (x+w, y+h), (0, 0, 0), 2)
+    if cv2.contourArea(contour) > min_area:
+        x, y, w, h = cv2.boundingRect(contour)
+        cv2.rectangle(image, (x, y), (x+w, y+h), (0, 0, 0), 2)
 
 
 # Optionally save the image with frames and inserted pictures
